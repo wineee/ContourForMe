@@ -3,7 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
-import Qt.labs.platform
+import Qt.labs.platform as Platform
 
 ApplicationWindow
 {
@@ -45,11 +45,36 @@ ApplicationWindow
         onOpacityChanged: appWindow.applyOpacity()
     }
 
+    MouseArea {
+        id: contextMouseArea
+        anchors.fill: vtui
+        acceptedButtons: Qt.RightButton
+        hoverEnabled: false
+        propagateComposedEvents: false
+        onReleased: function(mouse) {
+            if (mouse.button === Qt.RightButton) {
+                contextMenu.open()
+                mouse.accepted = true
+            }
+        }
+    }
+
+    Platform.Menu {
+        id: contextMenu
+        Platform.MenuItem {
+            text: qsTr("Copy")
+            onTriggered: vtui.session.copySelectionToClipboard()
+        }
+        Platform.MenuItem {
+            text: qsTr("Paste")
+            onTriggered: vtui.session.pasteFromClipboardStrip(false)
+        }
+    }
+
     onClosing: {
         console.log("Terminal closed. Removing session.");
         terminalSessions.closeWindow();
     }
-
 
     onWidthChanged : function() {
         vtui.width = width
@@ -82,14 +107,14 @@ ApplicationWindow
 
     // NB: This requires Qt 5.12+
     // See https://doc.qt.io/qt-5/qml-qt-labs-platform-systemtrayicon.html#availability for details.
-    SystemTrayIcon {
+    Platform.SystemTrayIcon {
         id: trayIcon
         visible: false
         icon.source: "qrc:/contour/logo-256.png"
         icon.name: "Contour Terminal"
 
-        menu: Menu {
-            MenuItem {
+        menu: Platform.Menu {
+            Platform.MenuItem {
                 text: qsTr("Quit")
                 onTriggered: Qt.quit()
             }

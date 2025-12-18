@@ -266,6 +266,16 @@ TerminalSession::TerminalSession(TerminalSessionManager* manager,
     configureTerminal();
 }
 
+void TerminalSession::copySelectionToClipboard()
+{
+    executeAction(actions::Action { actions::CopySelection { actions::CopyFormat::Text } });
+}
+
+void TerminalSession::pasteFromClipboardStrip(bool strip)
+{
+    executeAction(actions::Action { actions::PasteClipboard { strip } });
+}
+
 TerminalSession::~TerminalSession()
 {
     sessionLog()("Destroying terminal session.");

@@ -255,6 +255,8 @@ class TerminalSession: public QAbstractItemModel, public vtbackend::Terminal::Ev
     Q_INVOKABLE void executePendingBufferCapture(bool allow, bool remember);
     Q_INVOKABLE void executeShowHostWritableStatusLine(bool allow, bool remember);
     Q_INVOKABLE void resizeTerminalToDisplaySize();
+    Q_INVOKABLE void copySelectionToClipboard();
+    Q_INVOKABLE void pasteFromClipboardStrip(bool strip);
 
     void updateColorPreference(vtbackend::ColorPreference preference);
 
