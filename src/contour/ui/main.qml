@@ -70,6 +70,10 @@ ApplicationWindow
             text: qsTr("Paste")
             onTriggered: vtui.session.pasteFromClipboardStrip(false)
         }
+        Platform.MenuItem {
+            text: qsTr("Open in File Manager")
+            onTriggered: vtui.session.openFileManager()
+        }
     }
 
     onClosing: {

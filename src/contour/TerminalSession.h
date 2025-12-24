@@ -258,6 +258,7 @@ class TerminalSession: public QAbstractItemModel, public vtbackend::Terminal::Ev
     Q_INVOKABLE void copySelectionToClipboard();
     Q_INVOKABLE void pasteFromClipboardStrip(bool strip);
     Q_INVOKABLE bool hasSelection();
+    Q_INVOKABLE void openFileManager();
 
     void updateColorPreference(vtbackend::ColorPreference preference);
 

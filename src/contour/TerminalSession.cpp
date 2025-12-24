@@ -282,6 +282,11 @@ bool TerminalSession::hasSelection()
     return terminal().selectionAvailable();
 }
 
+void TerminalSession::openFileManager()
+{
+    executeAction(actions::Action { actions::OpenFileManager {} });
+}
+
 TerminalSession::~TerminalSession()
 {
     sessionLog()("Destroying terminal session.");
