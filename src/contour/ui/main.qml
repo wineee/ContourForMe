@@ -63,6 +63,7 @@ ApplicationWindow
         id: contextMenu
         Platform.MenuItem {
             text: qsTr("Copy")
+            enabled: vtui.session && vtui.session.hasSelection()
             onTriggered: vtui.session.copySelectionToClipboard()
         }
         Platform.MenuItem {

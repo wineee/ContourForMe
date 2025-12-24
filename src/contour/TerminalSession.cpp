@@ -276,6 +276,12 @@ void TerminalSession::pasteFromClipboardStrip(bool strip)
     executeAction(actions::Action { actions::PasteClipboard { strip } });
 }
 
+bool TerminalSession::hasSelection()
+{
+    auto const l = scoped_lock { terminal() };
+    return terminal().selectionAvailable();
+}
+
 TerminalSession::~TerminalSession()
 {
     sessionLog()("Destroying terminal session.");
