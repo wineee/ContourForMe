@@ -11,6 +11,7 @@
 #endif
 
 #include <QtQml/QQmlEngine>
+#include <QtCore/QString>
 
 #include <algorithm>
 #include <filesystem>
@@ -104,12 +105,21 @@ TerminalSession* TerminalSessionManager::createSessionInBackground()
 #endif
 
     auto* session = new TerminalSession(this, createPty(ptyPath), _app);
-    managerLog()(
-        "Create new session with ID {}({}) at index {}", session->id(), (void*) session, _sessions.size());
+    managerLog()("Create new session with ID {}({}) at index {}",
+                 session->id(),
+                 (void*) session,
+                 _sessions.size());
 
+    auto const row = static_cast<int>(_sessions.size());
+    beginInsertRows(QModelIndex(), row, row);
     _sessions.insert(_sessions.end(), session);
+    endInsertRows();
 
     connect(session, &TerminalSession::sessionClosed, [this, session]() { removeSession(*session); });
+    connect(session, &TerminalSession::titleChanged, this, [this, session]() {
+        emitSessionDataChanged(session, { Roles::TitleRole });
+        updateStatusLine();
+    });
 
     // Claim ownership of this object, so that it will be deleted automatically by the QML's GC.
     //
@@ -179,9 +189,17 @@ TerminalSession* TerminalSessionManager::activateSession(TerminalSession* sessio
     }
 
     auto& displayState = _displayStates[_activeDisplay];
+    auto const previousIndex = getSessionIndexOf(displayState.currentSession);
+
     displayState.previousSession = displayState.currentSession;
     displayState.currentSession = session;
     updateStatusLine();
+
+    if (previousIndex && *previousIndex < _sessions.size())
+        emitSessionDataChanged(_sessions.at(*previousIndex), { Roles::ActiveRole });
+
+    if (auto const nextIndex = getSessionIndexOf(session))
+        emitSessionDataChanged(_sessions.at(*nextIndex), { Roles::ActiveRole });
 
     if (_activeDisplay)
     {
@@ -243,6 +261,12 @@ TerminalSession* TerminalSessionManager::createSession()
     return activateSession(createSessionInBackground(), true /*force resize on before display-attach*/);
 }
 
+TerminalSession* TerminalSessionManager::addSession()
+{
+    allowCreation();
+    return createSession();
+}
+
 void TerminalSessionManager::switchToPreviousTab()
 {
     managerLog()("switch to previous tab (current: {}, previous: {})",
@@ -296,6 +320,11 @@ void TerminalSessionManager::switchToTab(int position)
         activateSession(_sessions[position - 1]);
 }
 
+void TerminalSessionManager::switchToTabAt(int index)
+{
+    switchToTab(index + 1);
+}
+
 void TerminalSessionManager::closeWindow()
 {
     if (!_activeDisplay)
@@ -303,12 +332,10 @@ void TerminalSessionManager::closeWindow()
         managerLog()("No active display found. Cannot close window.");
         return;
     }
-    if (_displayStates[_activeDisplay].currentSession)
+    if (auto* session = _displayStates[_activeDisplay].currentSession)
     {
         managerLog()("Removing display {} from _displayStates.", (void*) _activeDisplay);
-        auto session = std::ranges::find(_sessions, _displayStates[_activeDisplay].currentSession);
-        if (session != _sessions.end())
-            _sessions.erase(session);
+        removeSession(*session);
         _activeDisplay = nullptr;
     }
     else
@@ -333,18 +360,39 @@ void TerminalSessionManager::closeTab()
     removeSession(*_displayStates[_activeDisplay].currentSession);
 }
 
-void TerminalSessionManager::moveTabTo(int position)
+void TerminalSessionManager::closeTabAt(int index)
 {
-    auto const currentIndexOpt = getSessionIndexOf(_displayStates[_activeDisplay].currentSession);
-    if (!currentIndexOpt)
+    if (index < 0 || index >= static_cast<int>(_sessions.size()))
         return;
 
+    auto* session = _sessions.at(static_cast<std::size_t>(index));
+    removeSession(*session);
+}
+
+void TerminalSessionManager::moveTabTo(int position)
+{
     if (position < 1 || position > static_cast<int>(_sessions.size()))
         return;
 
-    auto const index = static_cast<size_t>(position - 1);
+    auto const targetIndex = position - 1;
 
-    std::swap(_sessions[currentIndexOpt.value()], _sessions[index]);
+    auto const currentIndexOpt =
+        _activeDisplay ? getSessionIndexOf(_displayStates[_activeDisplay].currentSession) : std::nullopt;
+    if (!currentIndexOpt)
+        return;
+
+    auto const currentIndex = static_cast<int>(*currentIndexOpt);
+    if (currentIndex == targetIndex)
+        return;
+
+    auto const destination = targetIndex > currentIndex ? targetIndex + 1 : targetIndex;
+    beginMoveRows(QModelIndex(), currentIndex, currentIndex, QModelIndex(), destination);
+
+    auto* session = _sessions.at(static_cast<std::size_t>(currentIndex));
+    _sessions.erase(_sessions.begin() + currentIndex);
+    _sessions.insert(_sessions.begin() + targetIndex, session);
+
+    endMoveRows();
     updateStatusLine();
 }
 
@@ -354,11 +402,15 @@ void TerminalSessionManager::moveTabToLeft(TerminalSession* session)
     if (!maybeIndex)
         return;
 
-    auto const index = maybeIndex.value();
+    auto const index = static_cast<int>(maybeIndex.value());
 
     if (index > 0)
     {
-        std::swap(_sessions[index], _sessions[index - 1]);
+        beginMoveRows(QModelIndex(), index, index, QModelIndex(), index - 1);
+        auto* s = _sessions.at(static_cast<std::size_t>(index));
+        _sessions.erase(_sessions.begin() + index);
+        _sessions.insert(_sessions.begin() + index - 1, s);
+        endMoveRows();
         updateStatusLine();
     }
 }
@@ -369,11 +421,15 @@ void TerminalSessionManager::moveTabToRight(TerminalSession* session)
     if (!maybeIndex)
         return;
 
-    auto const index = maybeIndex.value();
+    auto const index = static_cast<int>(maybeIndex.value());
 
-    if (index + 1 < _sessions.size())
+    if (index + 1 < static_cast<int>(_sessions.size()))
     {
-        std::swap(_sessions[index], _sessions[index + 1]);
+        beginMoveRows(QModelIndex(), index, index, QModelIndex(), index + 2);
+        auto* s = _sessions.at(static_cast<std::size_t>(index));
+        _sessions.erase(_sessions.begin() + index);
+        _sessions.insert(_sessions.begin() + index + 1, s);
+        endMoveRows();
         updateStatusLine();
     }
 }
@@ -394,35 +450,67 @@ void TerminalSessionManager::removeSession(TerminalSession& thatSession)
         managerLog()("Session not found in session list.");
         return;
     }
+    auto const row = static_cast<int>(std::distance(_sessions.begin(), i));
+    beginRemoveRows(QModelIndex(), row, row);
     _sessions.erase(i);
+    endRemoveRows();
+
+    for (auto& [display, state]: _displayStates)
+    {
+        if (state.currentSession == &thatSession)
+            state.currentSession = nullptr;
+        if (state.previousSession == &thatSession)
+            state.previousSession = nullptr;
+    }
+
     tryFindSessionForDisplayOrClose();
+    updateStatusLine();
 }
 
 void TerminalSessionManager::tryFindSessionForDisplayOrClose()
 {
     managerLog()("Trying to find session for display: {}", (void*) _activeDisplay);
+    if (_sessions.empty())
+    {
+        updateStatusLine();
+        if (_activeDisplay)
+            _activeDisplay->closeDisplay();
+        return;
+    }
+
+    if (_activeDisplay)
+    {
+        auto& state = _displayStates[_activeDisplay];
+        if (state.currentSession
+            && std::ranges::find(_sessions, state.currentSession) != _sessions.end())
+        {
+            updateStatusLine();
+            activateSession(state.currentSession);
+            return;
+        }
+    }
+
     for (auto& session: _sessions)
     {
-        bool saveToSwitch { true };
-        // check if session is not used by any display and then switch
+        bool safeToSwitch { true };
         for (auto& [display, state]: _displayStates)
         {
             if (display && (state.currentSession == session))
             {
-                saveToSwitch = false;
+                safeToSwitch = false;
                 break;
             }
         }
 
-        if (saveToSwitch)
+        if (safeToSwitch)
         {
             managerLog()("Switching to session: {}", (void*) session);
             activateSession(session);
             return;
         }
     }
-    updateStatusLine();
-    _activeDisplay->closeDisplay();
+
+    activateSession(_sessions.front());
 }
 
 void TerminalSessionManager::updateColorPreference(vtbackend::ColorPreference const& preference)
@@ -434,12 +522,19 @@ void TerminalSessionManager::updateColorPreference(vtbackend::ColorPreference co
 // {{{ QAbstractListModel
 QVariant TerminalSessionManager::data(const QModelIndex& index, int role) const
 {
-    crispy::ignore_unused(role);
+    if (index.row() >= static_cast<int>(_sessions.size()))
+        return QVariant {};
 
-    if (index.row() < static_cast<int>(_sessions.size()))
-        return QVariant(_sessions.at(static_cast<size_t>(index.row()))->id());
+    auto* session = _sessions.at(static_cast<size_t>(index.row()));
 
-    return QVariant();
+    switch (role)
+    {
+        case Qt::DisplayRole:
+        case Roles::TitleRole: return sessionTitle(session, static_cast<std::size_t>(index.row()));
+        case Roles::IdRole: return QVariant(session->id());
+        case Roles::ActiveRole: return QVariant(isActiveSession(session));
+        default: return QVariant {};
+    }
 }
 
 int TerminalSessionManager::rowCount(const QModelIndex& parent) const
@@ -449,6 +544,15 @@ int TerminalSessionManager::rowCount(const QModelIndex& parent) const
     return static_cast<int>(_sessions.size());
 }
 // }}}
+
+QHash<int, QByteArray> TerminalSessionManager::roleNames() const
+{
+    return {
+        { Roles::IdRole, "id" },
+        { Roles::TitleRole, "title" },
+        { Roles::ActiveRole, "active" },
+    };
+}
 
 bool TerminalSessionManager::canCloseWindow() const noexcept
 {
@@ -464,6 +568,34 @@ bool TerminalSessionManager::canCloseWindow() const noexcept
     }
 
     return true;
+}
+
+QString TerminalSessionManager::sessionTitle(TerminalSession const* session, std::size_t index) const
+{
+    if (!session)
+        return QString("Tab %1").arg(static_cast<int>(index + 1));
+
+    if (auto const name = session->name())
+        return QString::fromStdString(*name);
+
+    auto const windowTitle = session->terminal().windowTitle();
+    if (!windowTitle.empty())
+        return QString::fromStdString(windowTitle);
+
+    return QString("Tab %1").arg(static_cast<int>(index + 1));
+}
+
+void TerminalSessionManager::emitSessionDataChanged(TerminalSession* session, QList<int> const& roles)
+{
+    if (!session)
+        return;
+
+    if (auto const indexOpt = getSessionIndexOf(session))
+    {
+        auto const row = static_cast<int>(*indexOpt);
+        auto const modelIndex = createIndex(row, 0);
+        emit dataChanged(modelIndex, modelIndex, roles);
+    }
 }
 
 } // namespace contour

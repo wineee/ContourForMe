@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 import Qt.labs.platform as Platform
+import "."
 
 ApplicationWindow
 {
@@ -36,13 +37,29 @@ ApplicationWindow
         height = vtui.implicitHeight
     }
 
-    Terminal {
-        id: vtui
-        focus: true
-        visible : true
+    ColumnLayout {
         anchors.fill: parent
-        onShowNotification: (title, content) => appWindow.showNotification(title, content)
-        onOpacityChanged: appWindow.applyOpacity()
+        spacing: 0
+
+        TabBar {
+            id: tabBar
+            Layout.fillWidth: true
+            Layout.preferredHeight: 44
+            model: terminalSessions
+            onTabSelected: terminalSessions.switchToTabAt(index)
+            onTabClosed: terminalSessions.closeTabAt(index)
+            onNewTabRequested: terminalSessions.addSession()
+        }
+
+        Terminal {
+            id: vtui
+            focus: true
+            visible : true
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            onShowNotification: (title, content) => appWindow.showNotification(title, content)
+            onOpacityChanged: appWindow.applyOpacity()
+        }
     }
 
     MouseArea {
@@ -63,7 +80,7 @@ ApplicationWindow
         id: contextMenu
         Platform.MenuItem {
             text: qsTr("Copy")
-            enabled: vtui.session && vtui.session.hasSelection()
+            //enabled: vtui.session && vtui.session.hasSelection()
             onTriggered: vtui.session.copySelectionToClipboard()
         }
         Platform.MenuItem {

@@ -5,6 +5,8 @@
 #include <contour/helper.h>
 
 #include <QtCore/QAbstractListModel>
+#include <QtCore/QHash>
+#include <QtCore/QList>
 #include <QtQml/QQmlEngine>
 
 #include <algorithm>
@@ -26,17 +28,27 @@ class TerminalSessionManager: public QAbstractListModel
     QML_ELEMENT
 
   public:
+    enum Roles
+    {
+        IdRole = Qt::UserRole + 1,
+        TitleRole,
+        ActiveRole,
+    };
+
     TerminalSessionManager(ContourGuiApp& app);
 
     contour::TerminalSession* createSessionInBackground();
 
     Q_INVOKABLE contour::TerminalSession* createSession();
+    Q_INVOKABLE contour::TerminalSession* addSession();
 
     void switchToPreviousTab();
     void switchToTabLeft();
     void switchToTabRight();
-    void switchToTab(int position);
+    Q_INVOKABLE void switchToTab(int position);
+    Q_INVOKABLE void switchToTabAt(int index);
     Q_INVOKABLE void closeTab();
+    Q_INVOKABLE void closeTabAt(int index);
     Q_INVOKABLE void closeWindow();
     void moveTabTo(int position);
     void moveTabToLeft(TerminalSession* session);
@@ -50,6 +62,7 @@ class TerminalSessionManager: public QAbstractListModel
     Q_INVOKABLE [[nodiscard]] QVariant data(const QModelIndex& index,
                                             int role = Qt::DisplayRole) const override;
     Q_INVOKABLE [[nodiscard]] int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
     [[nodiscard]] int count() const noexcept { return static_cast<int>(_sessions.size()); }
 
@@ -108,6 +121,20 @@ class TerminalSessionManager: public QAbstractListModel
         // TODO cache this value
         return getSessionIndexOf(_displayStates[_activeDisplay].currentSession).value();
     }
+
+    [[nodiscard]] bool isActiveSession(TerminalSession const* session) const noexcept
+    {
+        if (!_activeDisplay)
+            return false;
+        auto it = _displayStates.find(_activeDisplay);
+        if (it == _displayStates.end())
+            return false;
+        return it->second.currentSession == session;
+    }
+
+    [[nodiscard]] QString sessionTitle(TerminalSession const* session, std::size_t index) const;
+
+    void emitSessionDataChanged(TerminalSession* session, QList<int> const& roles);
 
     void updateStatusLine()
     {
