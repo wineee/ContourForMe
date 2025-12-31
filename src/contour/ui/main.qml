@@ -10,20 +10,15 @@ ApplicationWindow
 {
     id: appWindow
     visible: true
+    flags: Qt.FramelessWindowHint | Qt.Window
+    color: "transparent"
 
-    // Application window's background must be transparent in order to support transparent/semi-transparent
-    // background in the terminal widgets.
-    // color: "transparent"
-    color: Qt.rgba(0, 0, 0, 0.0)
+    title: vtui.session ? vtui.session.title : "Contour Terminal"
 
-    // NOTE: Can't be done because we cannot set vtui.session upon initialization due to a Qt5 bug
-    // that would keep recreating & re-assigning new sessions every time a new window is created
-    // for ALL already existing windows again and again and again, ...
-    //
-    // That is why the Component.onCompleted workaround is used until we require Qt6. Sad.
-    //
-    // title: "%1 - Contour".arg(vtui.session.title)
-    title: vtui.title
+    width: 1000
+    height: 700
+    minimumWidth: 400
+    minimumHeight: 300
 
     // Initialise the window size from the terminal's implicit (configured)
     // size once on creation. Do not use a binding (`width: vtui.implicitWidth`)
@@ -37,41 +32,151 @@ ApplicationWindow
         height = vtui.implicitHeight
     }
 
-    ColumnLayout {
+    Rectangle {
+        id: mainWindow
         anchors.fill: parent
-        spacing: 0
+        color: "#1a1a1a"
+        radius: 0
+        
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 0
+            spacing: 0
 
-        TabBar {
-            id: tabBar
-            Layout.fillWidth: true
-            Layout.preferredHeight: 44
-            model: terminalSessions
-            onTabSelected: terminalSessions.switchToTabAt(index)
-            onTabClosed: terminalSessions.closeTabAt(index)
-            onNewTabRequested: terminalSessions.addSession()
-        }
+            // Custom Title Bar
+            Rectangle {
+                id: titleBar
+                Layout.fillWidth: true
+                Layout.preferredHeight: 44
+                color: "#252525"
+                z: 1000
 
-        Terminal {
-            id: vtui
-            focus: true
-            visible : true
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            onShowNotification: (title, content) => appWindow.showNotification(title, content)
-            onOpacityChanged: appWindow.applyOpacity()
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 8
+                    spacing: 0
+
+                    TabBar {
+                        id: tabBar
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: terminalSessions
+                        onTabSelected: terminalSessions.switchToTabAt(index)
+                        onTabClosed: terminalSessions.closeTabAt(index)
+                        onNewTabRequested: terminalSessions.addSession()
+                    }
+
+                    // Window Control Buttons
+                    RowLayout {
+                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        spacing: 2
+
+                        Button {
+                            id: minimizeBtn
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 32
+                            
+                            background: Rectangle {
+                                color: minimizeBtn.hovered ? "#3a3a3a" : "transparent"
+                                radius: 4
+                            }
+                            
+                            contentItem: Text {
+                                text: "−"
+                                color: minimizeBtn.hovered ? "#ffffff" : "#c0c0c0"
+                                font.pixelSize: 16
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            
+                            onClicked: appWindow.showMinimized()
+                        }
+
+                        Button {
+                            id: maximizeBtn
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 32
+                            
+                            background: Rectangle {
+                                color: maximizeBtn.hovered ? "#3a3a3a" : "transparent"
+                                radius: 4
+                            }
+                            
+                            contentItem: Text {
+                                text: appWindow.visibility === Window.Maximized ? "⬜" : "☐"
+                                color: maximizeBtn.hovered ? "#ffffff" : "#c0c0c0"
+                                font.pixelSize: 13
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            
+                            onClicked: {
+                                if (appWindow.visibility === Window.Maximized) {
+                                    appWindow.showNormal()
+                                } else {
+                                    appWindow.showMaximized()
+                                }
+                            }
+                        }
+
+                        Button {
+                            id: closeBtn
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 32
+                            
+                            background: Rectangle {
+                                color: closeBtn.hovered ? "#d73f3f" : "transparent"
+                                radius: 4
+                            }
+                            
+                            contentItem: Text {
+                                text: "✕"
+                                color: closeBtn.hovered ? "#ffffff" : "#c0c0c0"
+                                font.pixelSize: 14
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            
+                            onClicked: appWindow.close()
+                        }
+                    }
+                }
+
+                // Title bar drag handler
+                DragHandler {
+                    target: null
+                    onActiveChanged: {
+                        if (active && appWindow.visibility !== Window.Maximized) {
+                            appWindow.startSystemMove()
+                        }
+                    }
+                }
+            }
+
+            Terminal {
+                id: vtui
+                focus: true
+                visible: true
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                onShowNotification: (title, content) => appWindow.showNotification(title, content)
+                onOpacityChanged: appWindow.applyOpacity()
+            }
         }
     }
 
+    // Context menu area
     MouseArea {
         id: contextMouseArea
-        anchors.fill: vtui
+        anchors.fill: parent
+        anchors.topMargin: 44
         acceptedButtons: Qt.RightButton
-        hoverEnabled: false
-        propagateComposedEvents: false
-        onReleased: function(mouse) {
+        propagateComposedEvents: true
+        
+        onClicked: (mouse) => {
             if (mouse.button === Qt.RightButton) {
-                contextMenu.open()
-                mouse.accepted = true
+                contextMenu.popup()
             }
         }
     }
@@ -98,13 +203,11 @@ ApplicationWindow
         terminalSessions.closeWindow();
     }
 
-    onWidthChanged : function() {
-        vtui.width = width
+    onWidthChanged: function() {
         vtui.updateSizeWidget()
     }
 
     onHeightChanged: function() {
-        vtui.height = height
         vtui.updateSizeWidget()
     }
 
@@ -115,16 +218,10 @@ ApplicationWindow
     function showNotification(title, content) {
         // "OSC 777 ; notify ; <TITLE> ; <CONTENT> ST"
         // Example: printf "\033]777;notify;Hello Title;Hello Content\033\\"
-        console.log("main: notification [%1] %2".arg(title).arg(content));
-        if (trayIcon.supportsMessages)
-        {
-            trayIcon.show();
-            trayIcon.showMessage("Application Message: %1".arg(title),
-                                 "%1".arg(content),
-                                 60 * 1000);
+        console.log("Notification [%1]: %2".arg(title).arg(content))
+        if (trayIcon.supportsMessages) {
+            trayIcon.showMessage("Contour: %1".arg(title), content, 5000)
         }
-        else
-            console.log("main: Notification system not supported!");
     }
 
     // NB: This requires Qt 5.12+

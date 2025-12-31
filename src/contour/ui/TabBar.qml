@@ -5,20 +5,22 @@ import QtQuick.Layouts
 Rectangle {
     id: tabBar
     property var model: terminalSessions
+    property int currentIndex: 0
 
     signal tabSelected(int index)
     signal tabClosed(int index)
     signal newTabRequested()
 
-    height: 40
-    color: "#0e1218"
-    border.color: "#16202c"
-    radius: 0
-
+    height: 44
+    color: "#252525"
+    
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 8
-        spacing: 8
+        anchors.leftMargin: 8
+        anchors.rightMargin: 8
+        anchors.topMargin: 4
+        anchors.bottomMargin: 4
+        spacing: 6
 
         ListView {
             id: tabList
@@ -28,79 +30,109 @@ Rectangle {
             boundsBehavior: Flickable.StopAtBounds
             interactive: contentWidth > width
             clip: true
-            spacing: 6
+            spacing: 4
             model: tabBar.model
+            currentIndex: tabBar.currentIndex
 
             delegate: Rectangle {
                 id: tabItem
                 readonly property bool active: model.active
+                readonly property bool hovered: mouseArea.containsMouse
+                readonly property real availableWidth: tabList.width - (tabList.count - 1) * tabList.spacing
+                readonly property real dynamicWidth: tabList.count > 0 ? Math.max(100, Math.min(availableWidth / tabList.count, 300)) : 200
 
-                height: tabList.height - 8
-                width: Math.max(120, titleText.implicitWidth + closeButton.implicitWidth + 32)
-                radius: 8
-                color: active ? "#142131" : "#0f141c"
-                border.color: active ? "#2ea8b8" : "#1c2733"
-                layer.enabled: true
-                layer.samples: 4
+                height: tabList.height
+                width: Math.min(Math.max(100, titleText.implicitWidth + 48), dynamicWidth)
+                color: active ? "#3a3a3a" : (hovered ? "#323232" : "#2a2a2a")
+                border.color: active ? "#0f88a0" : "transparent"
+                border.width: active ? 1 : 0
+                radius: 6
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 6
+                    anchors.topMargin: 2
+                    anchors.bottomMargin: 2
                     spacing: 8
 
                     Text {
                         id: titleText
                         Layout.fillWidth: true
                         text: model.title || `Tab ${index + 1}`
-                        color: active ? "#e4ecf5" : "#b8c4d1"
-                        font.family: "Source Code Pro"
-                        font.weight: Font.Medium
+                        color: active ? "#ffffff" : "#b0b0b0"
+                        font.family: "Monospace"
+                        font.pixelSize: 12
+                        font.weight: Font.Normal
                         elide: Text.ElideRight
                         verticalAlignment: Text.AlignVCenter
                     }
 
                     ToolButton {
                         id: closeButton
-                        text: "×"
-                        padding: 4
-                        font.pixelSize: 14
-                        hoverEnabled: true
+                        visible: active || hovered
+                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 24
+                        padding: 0
+                        icon.width: 14
+                        icon.height: 14
+                        
+                        background: Rectangle {
+                            color: closeButton.hovered ? "#d73f3f" : "transparent"
+                            radius: 3
+                        }
+                        
+                        contentItem: Text {
+                            text: "×"
+                            color: closeButton.hovered ? "#ffffff" : "#808080"
+                            font.pixelSize: 14
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        
                         onClicked: tabBar.tabClosed(index)
                     }
                 }
 
-                TapHandler {
-                    acceptedButtons: Qt.LeftButton
-                    onTapped: tabBar.tabSelected(index)
-                    grabPermissions: PointerHandler.TakeOverForbidden
-                }
-
-                TapHandler {
-                    acceptedButtons: Qt.MiddleButton
-                    onTapped: tabBar.tabClosed(index)
-                    grabPermissions: PointerHandler.TakeOverForbidden
+                MouseArea {
+                    id: mouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                    
+                    onClicked: (mouse) => {
+                        if (mouse.button === Qt.LeftButton) {
+                            tabBar.tabSelected(index)
+                        } else if (mouse.button === Qt.MiddleButton) {
+                            tabBar.tabClosed(index)
+                        }
+                    }
                 }
             }
         }
 
         Button {
             id: addButton
-            text: "+"
-            Layout.preferredWidth: 36
-            Layout.fillHeight: true
+            Layout.preferredWidth: 32
+            Layout.preferredHeight: 32
+            Layout.alignment: Qt.AlignVCenter
+            
             background: Rectangle {
-                radius: 8
-                color: addButton.pressed ? "#1b2a33" : "#14323e"
-                border.color: "#245b6d"
+                color: addButton.hovered ? "#333333" : "#2a2a2a"
+                border.color: addButton.hovered ? "#444444" : "transparent"
+                border.width: 1
+                radius: 4
             }
+            
             contentItem: Text {
-                text: addButton.text
-                color: "#d9e6f2"
-                font.family: "Source Code Pro"
+                text: "+"
+                color: addButton.hovered ? "#00a8b8" : "#909090"
+                font.pixelSize: 16
                 font.weight: Font.Bold
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
+            
             onClicked: tabBar.newTabRequested()
         }
     }
