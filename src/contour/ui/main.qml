@@ -176,7 +176,7 @@ ApplicationWindow
         
         onClicked: (mouse) => {
             if (mouse.button === Qt.RightButton) {
-                contextMenu.popup()
+                contextMenu.open()
             }
         }
     }
