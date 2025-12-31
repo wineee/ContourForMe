@@ -12,6 +12,7 @@
         <file>ui/BellSound.qml</file>
         <file>ui/Terminal.qml</file>
         <file>ui/main.qml</file>
+        <file>ui/ContourTabBar.qml</file>
     </qresource>
 </RCC>
 <!-- vim:syntax=xml

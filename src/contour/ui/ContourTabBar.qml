@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
-    id: tabBar
+    id: contourTabBar
     property var model: terminalSessions
     property int currentIndex: 0
 
@@ -90,7 +90,7 @@ Rectangle {
                             anchors.fill: parent
                             hoverEnabled: true
                             onClicked: (mouse) => {
-                                tabBar.tabClosed(index)
+                                contourTabBar.tabClosed(index)
                                 mouse.accepted = true
                             }
                         }
@@ -106,9 +106,9 @@ Rectangle {
                     
                     onClicked: (mouse) => {
                         if (mouse.button === Qt.LeftButton) {
-                            tabBar.tabSelected(index)
+                            contourTabBar.tabSelected(index)
                         } else if (mouse.button === Qt.MiddleButton) {
-                            tabBar.tabClosed(index)
+                            contourTabBar.tabClosed(index)
                         }
                     }
                 }
@@ -137,7 +137,7 @@ Rectangle {
                 verticalAlignment: Text.AlignVCenter
             }
             
-            onClicked: tabBar.newTabRequested()
+            onClicked: contourTabBar.newTabRequested()
         }
     }
 }

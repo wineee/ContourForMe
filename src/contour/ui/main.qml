@@ -57,7 +57,7 @@ ApplicationWindow
                     anchors.rightMargin: 8
                     spacing: 0
 
-                    TabBar {
+                    ContourTabBar {
                         id: tabBar
                         Layout.fillWidth: true
                         Layout.fillHeight: true
