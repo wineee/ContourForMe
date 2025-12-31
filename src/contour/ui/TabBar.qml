@@ -68,35 +68,39 @@ Rectangle {
                         verticalAlignment: Text.AlignVCenter
                     }
 
-                    ToolButton {
+                    Rectangle {
                         id: closeButton
                         visible: active || hovered
                         Layout.preferredWidth: 24
                         Layout.preferredHeight: 24
-                        padding: 0
-                        icon.width: 14
-                        icon.height: 14
-                        
-                        background: Rectangle {
-                            color: closeButton.hovered ? "#d73f3f" : "transparent"
-                            radius: 3
-                        }
-                        
-                        contentItem: Text {
+                        color: closeButtonMouse.containsMouse ? "#d73f3f" : "transparent"
+                        radius: 3
+
+                        Text {
+                            anchors.centerIn: parent
                             text: "×"
-                            color: closeButton.hovered ? "#ffffff" : "#808080"
+                            color: closeButtonMouse.containsMouse ? "#ffffff" : "#808080"
                             font.pixelSize: 14
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        
-                        onClicked: tabBar.tabClosed(index)
+
+                        MouseArea {
+                            id: closeButtonMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: (mouse) => {
+                                tabBar.tabClosed(index)
+                                mouse.accepted = true
+                            }
+                        }
                     }
                 }
 
                 MouseArea {
                     id: mouseArea
                     anchors.fill: parent
+                    anchors.rightMargin: closeButton.visible ? closeButton.width + 8 : 0
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton | Qt.MiddleButton
                     

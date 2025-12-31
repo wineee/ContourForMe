@@ -62,9 +62,9 @@ ApplicationWindow
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         model: terminalSessions
-                        onTabSelected: terminalSessions.switchToTabAt(index)
-                        onTabClosed: terminalSessions.closeTabAt(index)
-                        onNewTabRequested: terminalSessions.addSession()
+                        onTabSelected: (index) => terminalSessions.switchToTabAt(index)
+                        onTabClosed: (index) => terminalSessions.closeTabAt(index)
+                        onNewTabRequested: () => terminalSessions.addSession()
                     }
 
                     // Window Control Buttons
