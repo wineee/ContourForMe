@@ -83,6 +83,7 @@ class TerminalSession: public QAbstractItemModel, public vtbackend::Terminal::Ev
     Q_PROPERTY(int fontSize READ getFontSize)
     Q_PROPERTY(int upTime READ getUptime)
     Q_PROPERTY(QString bellSource READ getBellSource NOTIFY onBell)
+    Q_PROPERTY(bool showTitleBar READ getShowTitleBar NOTIFY showTitleBarChanged)
 
     // Q_PROPERTY(QString profileName READ profileName NOTIFY profileNameChanged)
 
@@ -174,6 +175,14 @@ class TerminalSession: public QAbstractItemModel, public vtbackend::Terminal::Ev
             return false;
 
         return true;
+    }
+
+    bool getShowTitleBar() const noexcept { return _profile.showTitleBar.value(); }
+
+    void toggleShowTitleBar() noexcept
+    {
+        _profile.showTitleBar.value() = !_profile.showTitleBar.value();
+        emit showTitleBarChanged();
     }
 
     void addToAccumulatedScroll(crispy::point pixelDelta, crispy::point angleDelta) noexcept;
@@ -424,6 +433,7 @@ class TerminalSession: public QAbstractItemModel, public vtbackend::Terminal::Ev
     void isScrollbarRightChanged();
     void isScrollbarVisibleChanged();
     void opacityChanged();
+    void showTitleBarChanged();
     void onBell(float volume);
     void onAlert();
     void requestPermissionForFontChange();

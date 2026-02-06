@@ -47,7 +47,8 @@ ApplicationWindow
             Rectangle {
                 id: titleBar
                 Layout.fillWidth: true
-                Layout.preferredHeight: 44
+                Layout.preferredHeight: vtui.session && !vtui.session.showTitleBar ? 0 : 44
+                visible: vtui.session ? vtui.session.showTitleBar : true
                 color: "#252525"
                 z: 1000
 
@@ -164,13 +165,35 @@ ApplicationWindow
                 onOpacityChanged: appWindow.applyOpacity()
             }
         }
+
+        // Drag area for frameless mode (when title bar is hidden)
+        // Provides a small area at the top of the window for dragging
+        Rectangle {
+            id: framelessDragArea
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: titleBar.visible ? 0 : 8
+            visible: !titleBar.visible
+            color: "transparent"
+            z: 999
+
+            DragHandler {
+                target: null
+                onActiveChanged: {
+                    if (active && appWindow.visibility !== Window.Maximized) {
+                        appWindow.startSystemMove()
+                    }
+                }
+            }
+        }
     }
 
     // Context menu area
     MouseArea {
         id: contextMouseArea
         anchors.fill: parent
-        anchors.topMargin: 44
+        anchors.topMargin: titleBar.visible ? 44 : 0
         acceptedButtons: Qt.RightButton
         propagateComposedEvents: true
         

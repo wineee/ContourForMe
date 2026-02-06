@@ -322,7 +322,8 @@ void TerminalDisplay::setSession(TerminalSession* newSession)
         _session->start();
     }
 
-    window()->setFlag(Qt::FramelessWindowHint, !profile().showTitleBar.value());
+    // In CSD mode, we don't modify FramelessWindowHint as it's already set in QML.
+    // The showTitleBar configuration controls the visibility of the custom title bar in QML.
 
     if (!_renderer)
     {
@@ -1583,10 +1584,8 @@ void TerminalDisplay::toggleFullScreen()
 
 void TerminalDisplay::toggleTitleBar()
 {
-    auto const currentlyFrameless = (window()->flags() & Qt::FramelessWindowHint) != 0;
-    _maximizedState = window()->visibility() == QQuickWindow::Visibility::Maximized;
-
-    window()->setFlag(Qt::FramelessWindowHint, !currentlyFrameless);
+    // In CSD mode, toggle the custom title bar visibility via configuration
+    _session->toggleShowTitleBar();
 }
 
 void TerminalDisplay::toggleInputMethodEditorHandling()
