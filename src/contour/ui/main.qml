@@ -15,14 +15,7 @@ ApplicationWindow
     // color: "transparent"
     color: Qt.rgba(0, 0, 0, 0.0)
 
-    // NOTE: Can't be done because we cannot set vtui.session upon initialization due to a Qt5 bug
-    // that would keep recreating & re-assigning new sessions every time a new window is created
-    // for ALL already existing windows again and again and again, ...
-    //
-    // That is why the Component.onCompleted workaround is used until we require Qt6. Sad.
-    //
-    // title: "%1 - Contour".arg(vtui.session.title)
-    title: vtui.title
+    title: "%1 - Contour".arg(vtui.session.title)
 
     width: vtui.implicitWidth
     height: vtui.implicitHeight
@@ -71,8 +64,6 @@ ApplicationWindow
             console.log("main: Notification system not supported!");
     }
 
-    // NB: This requires Qt 5.12+
-    // See https://doc.qt.io/qt-5/qml-qt-labs-platform-systemtrayicon.html#availability for details.
     SystemTrayIcon {
         id: trayIcon
         visible: false
